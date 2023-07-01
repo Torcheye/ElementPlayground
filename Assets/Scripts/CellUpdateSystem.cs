@@ -4,7 +4,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
-using UnityEngine;
+using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(VariableRateSimulationSystemGroup))]
@@ -28,129 +28,100 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
+        var length = _query.CalculateEntityCount();
         var current = _query.ToComponentDataArray<Cell>(Allocator.TempJob);
+        var change = new NativeArray<CellChange>(length, Allocator.TempJob);
 
         var handle = new CellJob()
         {
-            _countX = _countX,
-            _countY = _countY,
-            Current = current
-        }.ScheduleParallel(state.Dependency);
+            CountX = _countX,
+            CountY = _countY,
+            Current = current,
+            Change = change
+        }.Schedule(length, 64, state.Dependency);
         handle.Complete();
         current.Dispose();
-
-        //new CellResetJob().ScheduleParallel();
+        
+        var buffer = SystemAPI.GetSingletonBuffer<CellBuffer>().Reinterpret<Entity>();
+        foreach (CellChange c in change)
+        {
+            if (!c.Set) continue;
+            SystemAPI.SetComponent(buffer[c.Target0.Id], c.Target0);
+            SystemAPI.SetComponent(buffer[c.Target0.Id], new URPMaterialPropertyBaseColor{Value = Util.Type2Color(c.Target0.Type)});
+            SystemAPI.SetComponent(buffer[c.Target1.Id], c.Target1);
+            SystemAPI.SetComponent(buffer[c.Target1.Id], new URPMaterialPropertyBaseColor{Value = Util.Type2Color(c.Target1.Type)});
+        }
+        
+        change.Dispose();
     }
 
-    public void OnStopRunning(ref SystemState state) {}
+    public void OnStopRunning(ref SystemState state) { }
     
     [BurstCompile]
-    partial struct CellJob : IJobEntity
+    struct CellJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<Cell> Current;
-        public int _countX, _countY;
+        [WriteOnly] public NativeArray<CellChange> Change; 
+        public int CountX, CountY;
         
-        public void Execute(CellAspect ca)
+        public void Execute(int i)
         {
-            int i = ca.Cell.ValueRO.Id;
-
-            if (ca.Cell.ValueRO.Type == 0)
-            {
-                // rule sand
-                if (GetNeighbor(i, 0, 1) != -1 && Current[GetNeighbor(i, 0, 1)].Type == 1)
-                {
-                    ca.Cell.ValueRW.Type = 1;
-                    ca.Color.ValueRW.Value = Type2Color(1);
-                }
-            }
-            else if (ca.Cell.ValueRO.Type == 1)
-            {
-                // rule sand
-                if (GetNeighbor(i, 0, -1) != -1 && Current[GetNeighbor(i, 0, -1)].Type == 0)
-                {
-                    ca.Cell.ValueRW.Type = 0;
-                    ca.Color.ValueRW.Value = Type2Color(0);
-                }
-                // else if (GetNeighbor(i, -1, -1) != -1 && Current[GetNeighbor(i, -1, -1)].Type == 0)
-                // {
-                //     ca.Cell.ValueRW.Type = 0;
-                //     ca.Color.ValueRW.Value = Type2Color(0);
-                // }
-                // else if (GetNeighbor(i, 1, -1) != -1 && Current[GetNeighbor(i, 1, -1)].Type == 0)
-                // {
-                //     ca.Cell.ValueRW.Type = 0;
-                //     ca.Color.ValueRW.Value = Type2Color(0);
-                // }
-            }
+            var change = new CellChange() { Set = true };
             
+            // sand
+            if (Current[i].Type == 1)
+            {
+                var low = GetNeighbor(i, 0, -1);
+                var lowleft = GetNeighbor(i, -1, -1);
+                var lowright = GetNeighbor(i, 1, -1);
+                
+                change.Target1 = new Cell{ Id = i, Type = 0, Updated = true };
+                
+                if (low != -1 && Current[low].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = low, Type = 1, Updated = true };
+                }
+                else if (lowleft != -1 && Current[lowleft].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = lowleft, Type = 1, Updated = true };
+                }
+                else if (lowright != -1 && Current[lowright].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = lowright, Type = 1, Updated = true };
+                }
+                else
+                {
+                    change.Set = false;
+                }
+            }
+
+            Change[i] = change;
         }
-        
-        [BurstCompile]
+
         private int GetNeighbor(in int id, in int x, in int y)
         {
-            int row = id / _countX;
-            int col = id % _countX;
+            int row = id / CountX;
+            int col = id % CountX;
         
-            if (row == 0 && y < 0 || row == _countY - 1 && y > 0 ||
-                col == 0 && x < 0 || col == _countX - 1 && x > 0)
-            {
+            if (row == 0 && y < 0 || row == CountY - 1 && y > 0 ||
+                col == 0 && x < 0 || col == CountX - 1 && x > 0)
                 return -1;
-            }
 
-            return id + y * _countX + x;
+            return id + y * CountX + x;
         }
     }
 
-    /// <summary>
-    /// Update target cell
-    /// </summary>
-    [BurstCompile]
-    partial struct CellUpdateJob : IJobEntity
-    {
-        public int TargetId;
-        public int TargetFrom;
-        public int TargetTo;
-
-        void Execute(CellAspect c)
-        {
-            // update target
-            
-            if (c.Cell.ValueRO.Id == TargetId)
-            {
-                if (!c.Cell.ValueRO.Updated)
-                {
-                    if (c.Cell.ValueRO.Type == TargetFrom)
-                    {
-                        c.Cell.ValueRW.Updated = true;
-                        c.Cell.ValueRW.Type = TargetTo;
-                        c.Color.ValueRW.Value = Type2Color(TargetTo);
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Reset cells for next update
-    /// </summary>
-    [BurstCompile]
-    partial struct CellResetJob : IJobEntity
-    {
-        void Execute(CellAspect c)
-        {
-            if (!c.Cell.ValueRO.Updated)
-                return;
-            c.Cell.ValueRW.Updated = false;
-        }
-    }
-
-    private static float4 Type2Color(in int type)
-    {
-        return type switch
-        {
-            0 => float4.zero,
-            1 => new float4(0, 1, 1, 1),
-            _ => new float4(1, 0, 0, 1)
-        };
-    }
+    // /// <summary>
+    // /// Reset cells for next update
+    // /// </summary>
+    // [BurstCompile]
+    // partial struct CellResetJob : IJobEntity
+    // {
+    //     void Execute(CellAspect c)
+    //     {
+    //         if (!c.Cell.ValueRO.Updated)
+    //             return;
+    //         c.Cell.ValueRW.Updated = false;
+    //     }
+    // }
 }
