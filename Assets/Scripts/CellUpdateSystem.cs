@@ -1,6 +1,7 @@
 ﻿using Unity.Entities;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine;
@@ -10,6 +11,7 @@ using UnityEngine;
 public partial struct CellUpdateSystem : ISystem, ISystemStartStop
 {
     private int _countX, _countY;
+    private EntityQuery _query;
     public void OnCreate(ref SystemState state)
     {
         state.RequireForUpdate<Spawner>();
@@ -20,53 +22,84 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
         var spawner = SystemAPI.GetSingleton<Spawner>();
         _countX = spawner.CountX;
         _countY = spawner.CountY;
+        _query = SystemAPI.QueryBuilder().WithAspect<CellAspect>().Build();
     }
     
     [BurstCompile]
     public void OnUpdate(ref SystemState state)
     {
-        foreach (CellAspect cellAspect in SystemAPI.Query<CellAspect>())
+        var current = _query.ToComponentDataArray<Cell>(Allocator.TempJob);
+
+        var handle = new CellJob()
         {
-            if (cellAspect.Cell.ValueRO.Updated) continue;
-            if (cellAspect.Cell.ValueRO.Type == 0) continue;
-            
-            // 1. check down
-            int n = GetNeighbor(cellAspect.Cell.ValueRO.Id, 0, -1);
-            if (n == -1) continue;
+            _countX = _countX,
+            _countY = _countY,
+            Current = current
+        }.ScheduleParallel(state.Dependency);
+        handle.Complete();
+        current.Dispose();
 
-            var handle = new CellUpdateJob
-            {
-                TargetId = n,
-                TargetFrom = 0,
-                TargetTo = 1
-            }.ScheduleParallel(state.Dependency);
-            handle.Complete(); 
-            
-            //update self
-            cellAspect.Cell.ValueRW.Updated = true;
-            cellAspect.Cell.ValueRW.Type = 0;
-            cellAspect.Color.ValueRW.Value = Type2Color(0);
-        }
-
-        new CellResetJob().ScheduleParallel();
-    }
-    
-    [BurstCompile]
-    private int GetNeighbor(in int id, in int x, in int y)
-    {
-        int row = id / _countX;
-        int col = id % _countX;
-        
-        if (row == 0 && y < 0 || row == _countY - 1 && y > 0 ||
-            col == 0 && x < 0 || col == _countX - 1 && x > 0)
-        {
-            return -1;
-        }
-
-        return id + y * _countX + x;
+        //new CellResetJob().ScheduleParallel();
     }
 
     public void OnStopRunning(ref SystemState state) {}
+    
+    [BurstCompile]
+    partial struct CellJob : IJobEntity
+    {
+        [ReadOnly] public NativeArray<Cell> Current;
+        public int _countX, _countY;
+        
+        public void Execute(CellAspect ca)
+        {
+            int i = ca.Cell.ValueRO.Id;
+
+            if (ca.Cell.ValueRO.Type == 0)
+            {
+                // rule sand
+                if (GetNeighbor(i, 0, 1) != -1 && Current[GetNeighbor(i, 0, 1)].Type == 1)
+                {
+                    ca.Cell.ValueRW.Type = 1;
+                    ca.Color.ValueRW.Value = Type2Color(1);
+                }
+            }
+            else if (ca.Cell.ValueRO.Type == 1)
+            {
+                // rule sand
+                if (GetNeighbor(i, 0, -1) != -1 && Current[GetNeighbor(i, 0, -1)].Type == 0)
+                {
+                    ca.Cell.ValueRW.Type = 0;
+                    ca.Color.ValueRW.Value = Type2Color(0);
+                }
+                // else if (GetNeighbor(i, -1, -1) != -1 && Current[GetNeighbor(i, -1, -1)].Type == 0)
+                // {
+                //     ca.Cell.ValueRW.Type = 0;
+                //     ca.Color.ValueRW.Value = Type2Color(0);
+                // }
+                // else if (GetNeighbor(i, 1, -1) != -1 && Current[GetNeighbor(i, 1, -1)].Type == 0)
+                // {
+                //     ca.Cell.ValueRW.Type = 0;
+                //     ca.Color.ValueRW.Value = Type2Color(0);
+                // }
+            }
+            
+        }
+        
+        [BurstCompile]
+        private int GetNeighbor(in int id, in int x, in int y)
+        {
+            int row = id / _countX;
+            int col = id % _countX;
+        
+            if (row == 0 && y < 0 || row == _countY - 1 && y > 0 ||
+                col == 0 && x < 0 || col == _countX - 1 && x > 0)
+            {
+                return -1;
+            }
+
+            return id + y * _countX + x;
+        }
+    }
 
     /// <summary>
     /// Update target cell
