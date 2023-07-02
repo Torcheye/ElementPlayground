@@ -20,6 +20,7 @@ public partial struct SpawnerSystem : ISystem, ISystemStartStop
         state.World.GetExistingSystemManaged<VariableRateSimulationSystemGroup>().RateManager = new RateUtils.VariableRateManager(SystemAPI.GetSingleton<UpdateRate>().MilliSeconds);
         Spawner spawner = SystemAPI.GetSingleton<Spawner>();
         entityManager.CreateSingleton<MouseHit>();
+        entityManager.CreateSingleton<Brush>();
         
         var bufferEntity = entityManager.CreateEntity();
         entityManager.AddBuffer<CellBuffer>(bufferEntity);
@@ -38,18 +39,11 @@ public partial struct SpawnerSystem : ISystem, ISystemStartStop
                     Updated = false
                 };
                 
-                float4 col = float4.zero;
-                if (id == 14320 || id == 12720 || id == 11120 || id == 10800)
-                {
-                    cellComponent.Type = 1;
-                    col = new float4(0.761f, 0.698f, 0.502f, 1);
-                }
-
                 Entity cell = entityManager.Instantiate(spawner.Prefab);
                 SystemAPI.SetComponent(cell, cellComponent);
                 SystemAPI.SetComponent(cell, LocalTransform.FromPositionRotationScale(
                     new float3(startX + x * spawner.Distance, startY + y * spawner.Distance, 0), quaternion.identity, spawner.CellScale));
-                entityManager.AddComponentData(cell, new URPMaterialPropertyBaseColor() { Value = col });
+                entityManager.AddComponentData(cell, new URPMaterialPropertyBaseColor() { Value = float4.zero });
 
                 SystemAPI.GetBuffer<CellBuffer>(bufferEntity).Add(new CellBuffer() { CellEntity = cell});
 

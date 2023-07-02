@@ -14,15 +14,18 @@ public partial struct InputSystem : ISystem
 
     public void OnUpdate(ref SystemState state)
     {
-        if (Camera.main != null && Input.GetMouseButton(0))
+        if (Camera.main != null && Input.GetMouseButton(0) || Input.GetMouseButton(1))
         {
             var pos = Input.mousePosition;
             pos.z = 10;
-            // process input
+            var brush = SystemAPI.GetSingleton<Brush>();
+            
             var input = new InputCreateJob()
             {
                 Position = Camera.main.ScreenToWorldPoint(pos),
-                Size = SystemAPI.GetSingleton<Brush>().BrushSize
+                Type = brush.Type,
+                Size = brush.BrushSize,
+                Remove = Input.GetMouseButton(1)
             }.ScheduleParallel(state.Dependency);
             input.Complete();
         }
@@ -33,14 +36,25 @@ public partial struct InputSystem : ISystem
 partial struct InputCreateJob : IJobEntity
 {
     public float3 Position;
+    public CellType Type;
     public float Size;
+    public bool Remove;
     void Execute(CellAspect ca, in LocalTransform transform) 
     {
         if (math.distancesq(transform.Position, Position) < Size * Size)
         {
-            ca.Cell.ValueRW.Type = 1;
+            if (Remove)
+            {
+                ca.Cell.ValueRW.Type = 0;
+                ca.Color.ValueRW.Value = Util.Type2Color(0);
+            }
+            else
+            {
+                ca.Cell.ValueRW.Type = Type;
+                ca.Color.ValueRW.Value = Util.Type2Color(Type);
+            }
+            
             ca.Cell.ValueRW.Updated = true;
-            ca.Color.ValueRW.Value = Util.Type2Color(1);
         }
     }
 }

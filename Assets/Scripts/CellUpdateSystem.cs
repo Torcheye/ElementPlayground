@@ -2,9 +2,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
-using Unity.Mathematics;
 using Unity.Rendering;
-using Unity.Transforms;
 
 [BurstCompile]
 [UpdateInGroup(typeof(VariableRateSimulationSystemGroup))]
@@ -69,7 +67,7 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
             var change = new CellChange() { Set = true };
             
             // sand
-            if (Current[i].Type == 1)
+            if (Current[i].Type == CellType.Sand)
             {
                 var low = GetNeighbor(i, 0, -1);
                 var lowleft = GetNeighbor(i, -1, -1);
@@ -79,21 +77,57 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
                 
                 if (low != -1 && Current[low].Type == 0)
                 {
-                    change.Target0 = new Cell{ Id = low, Type = 1, Updated = true };
+                    change.Target0 = new Cell{ Id = low, Type = CellType.Sand, Updated = true };
                 }
                 else if (lowleft != -1 && Current[lowleft].Type == 0)
                 {
-                    change.Target0 = new Cell{ Id = lowleft, Type = 1, Updated = true };
+                    change.Target0 = new Cell{ Id = lowleft, Type = CellType.Sand, Updated = true };
                 }
                 else if (lowright != -1 && Current[lowright].Type == 0)
                 {
-                    change.Target0 = new Cell{ Id = lowright, Type = 1, Updated = true };
+                    change.Target0 = new Cell{ Id = lowright, Type = CellType.Sand, Updated = true };
                 }
                 else
                 {
                     change.Set = false;
                 }
             }
+            else if (Current[i].Type == CellType.Water)
+            {
+                var low = GetNeighbor(i, 0, -1);
+                var lowleft = GetNeighbor(i, -1, -1);
+                var lowright = GetNeighbor(i, 1, -1);
+                var lowleft2 = GetNeighbor(i, -2, -1);
+                var lowright2 = GetNeighbor(i, 2, -1);
+                
+                change.Target1 = new Cell{ Id = i, Type = 0, Updated = true };
+                
+                if (low != -1 && Current[low].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = low, Type = CellType.Water, Updated = true };
+                }
+                else if (lowleft != -1 && Current[lowleft].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = lowleft, Type = CellType.Water, Updated = true };
+                }
+                else if (lowright != -1 && Current[lowright].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = lowright, Type = CellType.Water, Updated = true };
+                }
+                else if (lowleft2 != -1 && Current[lowleft2].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = lowleft2, Type = CellType.Water, Updated = true };
+                }
+                else if (lowright2 != -1 && Current[lowright2].Type == 0)
+                {
+                    change.Target0 = new Cell{ Id = lowright2, Type = CellType.Water, Updated = true };
+                }
+                else
+                {
+                    change.Set = false;
+                }
+            }
+            
 
             Change[i] = change;
         }

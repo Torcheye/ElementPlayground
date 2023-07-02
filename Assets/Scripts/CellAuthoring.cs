@@ -4,9 +4,6 @@ using UnityEngine;
 
 public class CellAuthoring : MonoBehaviour
 {
-    public int Type;
-    public int Id;
-    public bool Updated;
 }
 
 public class CellBaker : Baker<CellAuthoring>
@@ -16,7 +13,7 @@ public class CellBaker : Baker<CellAuthoring>
         var entity = GetEntity(TransformUsageFlags.Dynamic);
         AddComponent(entity, new Cell
         {
-            Type = authoring.Type,
+            Type = 0,
             Id = -1,
             Updated = false
         });
