@@ -64,7 +64,7 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
         
         public void Execute(int i)
         {
-            var change = new CellChange() { Set = true };
+            var change = new CellChange() { Set = false };
             
             // sand
             if (Current[i].Type == CellType.Sand)
@@ -74,6 +74,7 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
                 var lowright = GetNeighbor(i, 1, -1);
                 
                 change.Target1 = new Cell{ Id = i, Type = 0, Updated = true };
+                change.Set = true;
                 
                 if (low != -1 && Current[low].Type == 0)
                 {
@@ -97,10 +98,11 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
                 var low = GetNeighbor(i, 0, -1);
                 var lowleft = GetNeighbor(i, -1, -1);
                 var lowright = GetNeighbor(i, 1, -1);
-                var lowleft2 = GetNeighbor(i, -2, -1);
-                var lowright2 = GetNeighbor(i, 2, -1);
+                var left = GetNeighbor(i, -1, 0);
+                var right = GetNeighbor(i, 1, 0);
                 
                 change.Target1 = new Cell{ Id = i, Type = 0, Updated = true };
+                change.Set = true;
                 
                 if (low != -1 && Current[low].Type == 0)
                 {
@@ -114,13 +116,13 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
                 {
                     change.Target0 = new Cell{ Id = lowright, Type = CellType.Water, Updated = true };
                 }
-                else if (lowleft2 != -1 && Current[lowleft2].Type == 0)
+                else if (left != -1 && Current[left].Type == 0)
                 {
-                    change.Target0 = new Cell{ Id = lowleft2, Type = CellType.Water, Updated = true };
+                    change.Target0 = new Cell{ Id = left, Type = CellType.Water, Updated = true };
                 }
-                else if (lowright2 != -1 && Current[lowright2].Type == 0)
+                else if (right != -1 && Current[right].Type == 0)
                 {
-                    change.Target0 = new Cell{ Id = lowright2, Type = CellType.Water, Updated = true };
+                    change.Target0 = new Cell{ Id = right, Type = CellType.Water, Updated = true };
                 }
                 else
                 {
@@ -128,7 +130,6 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
                 }
             }
             
-
             Change[i] = change;
         }
 

@@ -1015,4 +1015,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84b6afd8856e44f887f1fff34ae5b4e0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  brushSize: 5
+  brushSize: 50
