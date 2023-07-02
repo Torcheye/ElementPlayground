@@ -6,7 +6,6 @@ class SpawnerAuthoring : MonoBehaviour
     public GameObject Prefab;
     public float CellScale;
     public int CountX, CountY;
-    public float Distance;
 }
 
 class SpawnerBaker : Baker<SpawnerAuthoring>
@@ -19,8 +18,7 @@ class SpawnerBaker : Baker<SpawnerAuthoring>
             Prefab = GetEntity(authoring.Prefab, TransformUsageFlags.Dynamic),
             CellScale = authoring.CellScale,
             CountX = authoring.CountX,
-            CountY = authoring.CountY,
-            Distance = authoring.Distance
+            CountY = authoring.CountY
         });
     }
 }

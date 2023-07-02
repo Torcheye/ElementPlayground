@@ -54,7 +54,7 @@ partial struct InputCreateJob : IJobEntity
                 ca.Color.ValueRW.Value = Util.Type2Color(Type);
             }
             
-            ca.Cell.ValueRW.Updated = true;
+            ca.Cell.ValueRW.Updated = false;
         }
     }
 }

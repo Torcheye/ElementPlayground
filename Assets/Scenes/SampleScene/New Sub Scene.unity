@@ -152,7 +152,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 189a7ee55b294c6c9dda12972fddbef5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  MilliSeconds: 500
+  MilliSeconds: 10
 --- !u!4 &2110718136
 Transform:
   m_ObjectHideFlags: 0
@@ -198,10 +198,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Prefab: {fileID: 9213326783282594791, guid: 44e87bb451a7d294f943fe3954538eb7, type: 3}
-  CellScale: 1
-  CountX: 16
-  CountY: 9
-  Distance: 1
+  CellScale: 0.1
+  CountX: 160
+  CountY: 90
 --- !u!4 &2130785891
 Transform:
   m_ObjectHideFlags: 0

@@ -26,8 +26,8 @@ public partial struct SpawnerSystem : ISystem, ISystemStartStop
         entityManager.AddBuffer<CellBuffer>(bufferEntity);
 
         int id = 0;
-        float startX = -(spawner.CountX - 1) * 0.5f * spawner.Distance;
-        float startY = -(spawner.CountY - 1) * 0.5f * spawner.Distance;
+        float startX = -(spawner.CountX - 1) * 0.5f * spawner.CellScale;
+        float startY = -(spawner.CountY - 1) * 0.5f * spawner.CellScale;
         for (float y = 0; y < spawner.CountY; y ++)
         {
             for (float x = 0; x <spawner.CountX; x ++)
@@ -42,7 +42,7 @@ public partial struct SpawnerSystem : ISystem, ISystemStartStop
                 Entity cell = entityManager.Instantiate(spawner.Prefab);
                 SystemAPI.SetComponent(cell, cellComponent);
                 SystemAPI.SetComponent(cell, LocalTransform.FromPositionRotationScale(
-                    new float3(startX + x * spawner.Distance, startY + y * spawner.Distance, 0), quaternion.identity, spawner.CellScale));
+                    new float3(startX + x * spawner.CellScale, startY + y * spawner.CellScale, 0), quaternion.identity, spawner.CellScale));
                 entityManager.AddComponentData(cell, new URPMaterialPropertyBaseColor() { Value = float4.zero });
 
                 SystemAPI.GetBuffer<CellBuffer>(bufferEntity).Add(new CellBuffer() { CellEntity = cell});

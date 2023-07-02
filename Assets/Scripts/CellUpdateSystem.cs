@@ -3,6 +3,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Rendering;
+using UnityEngine;
 
 [BurstCompile]
 [UpdateInGroup(typeof(VariableRateSimulationSystemGroup))]
@@ -44,6 +45,9 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
         foreach (CellChange c in change)
         {
             if (!c.Set) continue;
+            if (SystemAPI.GetComponentRO<Cell>(buffer[c.Target0.Id]).ValueRO.Updated || 
+                SystemAPI.GetComponentRO<Cell>(buffer[c.Target1.Id]).ValueRO.Updated)
+                continue;
             SystemAPI.SetComponent(buffer[c.Target0.Id], c.Target0);
             SystemAPI.SetComponent(buffer[c.Target0.Id], new URPMaterialPropertyBaseColor{Value = Util.Type2Color(c.Target0.Type)});
             SystemAPI.SetComponent(buffer[c.Target1.Id], c.Target1);
@@ -51,6 +55,8 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
         }
         
         change.Dispose();
+
+        new CellResetJob().ScheduleParallel();
     }
 
     public void OnStopRunning(ref SystemState state) { }
@@ -146,17 +152,15 @@ public partial struct CellUpdateSystem : ISystem, ISystemStartStop
         }
     }
 
-    // /// <summary>
-    // /// Reset cells for next update
-    // /// </summary>
-    // [BurstCompile]
-    // partial struct CellResetJob : IJobEntity
-    // {
-    //     void Execute(CellAspect c)
-    //     {
-    //         if (!c.Cell.ValueRO.Updated)
-    //             return;
-    //         c.Cell.ValueRW.Updated = false;
-    //     }
-    // }
+    /// <summary>
+    /// Reset cells for next update
+    /// </summary>
+    [BurstCompile]
+    partial struct CellResetJob : IJobEntity
+    {
+        void Execute(ref Cell c)
+        {
+            c.Updated = false;
+        }
+    }
 }
